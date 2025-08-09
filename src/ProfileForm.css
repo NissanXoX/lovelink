@@ -1,0 +1,119 @@
+/* Container for form & profile view */
+.profile-form,
+.profile-view {
+  max-width: 400px;
+  margin: 3rem auto;
+  background: white;
+  padding: 2rem 2.5rem;
+  border-radius: 12px;
+  box-shadow: 0 6px 15px rgba(255, 81, 129, 0.3);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  text-align: center;
+}
+
+/* Heading */
+.profile-form h2,
+.profile-view h2 {
+  color: #ff4f81;
+  margin-bottom: 1.5rem;
+}
+
+/* Image preview container */
+.image-preview-wrapper {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 120px; /* fixed height for consistency */
+}
+
+/* Profile image styling */
+.profile-image {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ff4f81;
+  box-shadow: 0 2px 8px rgba(255, 79, 129, 0.4);
+}
+
+/* Placeholder when no image */
+.image-placeholder {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background-color: #ffd166;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 3px solid #ff4f81;
+  box-shadow: 0 2px 8px rgba(255, 79, 129, 0.4);
+}
+
+/* File input spacing */
+.profile-form input[type="file"] {
+  margin-bottom: 1rem;
+  width: 100%;
+  cursor: pointer;
+}
+
+/* Text inputs and textarea */
+.profile-form input[type="text"],
+.profile-form input[type="number"],
+.profile-form textarea {
+  width: 100%;
+  padding: 12px 15px;
+  margin-bottom: 1rem;
+  border: 2px solid #ffd166;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+/* Input focus effect */
+.profile-form input[type="text"]:focus,
+.profile-form input[type="number"]:focus,
+.profile-form textarea:focus {
+  outline: none;
+  border-color: #ff4f81;
+  box-shadow: 0 0 5px #ff4f81;
+}
+
+/* Buttons */
+.profile-form button,
+.profile-view .edit-btn {
+  width: 100%;
+  padding: 12px 15px;
+  background: #ff4f81;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+/* Disabled button style */
+.profile-form button:disabled {
+  background: #eaa0b3;
+  cursor: not-allowed;
+}
+
+/* Button hover */
+.profile-form button:hover:not(:disabled),
+.profile-view .edit-btn:hover {
+  background: #e2436d;
+}
+
+/* Profile view text */
+.profile-view p {
+  text-align: left;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
