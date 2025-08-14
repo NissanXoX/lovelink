@@ -8,12 +8,15 @@ import {
   onSnapshot,
   addDoc,
   serverTimestamp,
+  doc,
+  deleteDoc
 } from 'firebase/firestore';
 
 function ChatRoom({ chatWithUserId, onBack, chatUser }) {
   const currentUserId = auth.currentUser.uid;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [showProfile, setShowProfile] = useState(false);
   const bottomRef = useRef();
 
   // Generate consistent chatId
@@ -22,10 +25,10 @@ function ChatRoom({ chatWithUserId, onBack, chatUser }) {
       ? `${currentUserId}_${chatWithUserId}`
       : `${chatWithUserId}_${currentUserId}`;
 
+  // Listen to messages
   useEffect(() => {
     const messagesRef = collection(db, 'chats', chatId, 'messages');
     const q = query(messagesRef, orderBy('timestamp'));
-
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const msgs = [];
       querySnapshot.forEach((doc) => {
@@ -34,21 +37,36 @@ function ChatRoom({ chatWithUserId, onBack, chatUser }) {
       setMessages(msgs);
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     });
-
     return () => unsubscribe();
   }, [chatId]);
 
   const sendMessage = async () => {
     if (newMessage.trim() === '') return;
-
     const messagesRef = collection(db, 'chats', chatId, 'messages');
     await addDoc(messagesRef, {
       senderId: currentUserId,
       text: newMessage.trim(),
       timestamp: serverTimestamp(),
     });
-
     setNewMessage('');
+  };
+
+  const handleUnmatch = async () => {
+    if (!window.confirm(`Are you sure you want to unmatch with ${chatUser?.name}?`)) return;
+
+    try {
+      // Delete match document
+      await deleteDoc(doc(db, 'matches', chatId));
+
+      // Delete chat document
+      await deleteDoc(doc(db, 'chats', chatId));
+
+      // Close profile overlay and go back
+      setShowProfile(false);
+      onBack();
+    } catch (error) {
+      console.error('Error unmatching:', error);
+    }
   };
 
   return (
@@ -62,7 +80,8 @@ function ChatRoom({ chatWithUserId, onBack, chatUser }) {
         border: '1px solid #ddd',
         borderRadius: 12,
         backgroundColor: '#fff',
-        color: '#000', // text color black for readability
+        color: '#000',
+        position: 'relative'
       }}
     >
       {/* Header with Back button and chat user */}
@@ -73,10 +92,12 @@ function ChatRoom({ chatWithUserId, onBack, chatUser }) {
           display: 'flex',
           alignItems: 'center',
           gap: '1rem',
+          cursor: 'pointer'
         }}
+        onClick={() => setShowProfile(true)}
       >
         <button
-          onClick={onBack}
+          onClick={(e) => { e.stopPropagation(); onBack(); }}
           style={{
             cursor: 'pointer',
             border: 'none',
@@ -223,11 +244,93 @@ function ChatRoom({ chatWithUserId, onBack, chatUser }) {
             fontWeight: 'bold',
             cursor: 'pointer',
           }}
-          aria-label="Send message"
         >
           Send
         </button>
       </form>
+
+      {/* Profile overlay */}
+      {showProfile && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            padding: '2rem',
+            borderRadius: 12,
+            textAlign: 'center',
+            overflowY: 'auto',
+          }}
+        >
+          <img
+            src={chatUser?.avatar || 'https://via.placeholder.com/150'}
+            alt="Profile"
+            style={{
+              width: 150,
+              height: 150,
+              borderRadius: '50%',
+              objectFit: 'cover',
+              marginBottom: 20,
+              border: '3px solid #ff4f81',
+            }}
+          />
+          <h2 style={{ margin: '0 0 10px 0' }}>
+            {chatUser?.name || 'Unknown'}
+            {chatUser?.age ? `, ${chatUser.age}` : ''}
+          </h2>
+          {chatUser?.bio && (
+            <p style={{ maxWidth: 300, marginBottom: 10 }}>
+              <strong>Bio:</strong> {chatUser.bio}
+            </p>
+          )}
+          {chatUser?.hobbies?.length > 0 && (
+            <p style={{ maxWidth: 300, marginBottom: 10 }}>
+              <strong>Hobbies:</strong> {chatUser.hobbies.join(', ')}
+            </p>
+          )}
+          {chatUser?.likes?.length > 0 && (
+            <p style={{ maxWidth: 300, marginBottom: 10 }}>
+              <strong>Likes:</strong> {chatUser.likes.join(', ')}
+            </p>
+          )}
+          <button
+            onClick={handleUnmatch}
+            style={{
+              marginTop: 20,
+              padding: '10px 20px',
+              borderRadius: 20,
+              backgroundColor: '#ff4f81',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+            }}
+          >
+            Unmatch
+          </button>
+          <button
+            onClick={() => setShowProfile(false)}
+            style={{
+              marginTop: 10,
+              padding: '6px 14px',
+              borderRadius: 20,
+              backgroundColor: '#fff',
+              color: '#ff4f81',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+            }}
+          >
+            Close
+          </button>
+        </div>
+      )}
     </div>
   );
 }

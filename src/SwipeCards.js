@@ -1,6 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { db, auth } from './firebase';
-import { collection, getDocs, addDoc, query, where } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  setDoc,
+  doc,
+  query,
+  where,
+  serverTimestamp,
+  addDoc
+} from 'firebase/firestore';
 
 const SWIPE_THRESHOLD = 100; // px drag distance to trigger swipe
 
@@ -17,17 +26,33 @@ function SwipeCards() {
   useEffect(() => {
     const fetchProfiles = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'profiles'));
         const currentUserId = auth.currentUser.uid;
-        const results = [];
 
-        querySnapshot.forEach((doc) => {
-          if (doc.id !== currentUserId) {
-            results.push({ id: doc.id, ...doc.data() });
+        // 1️⃣ Get all likes/skips by current user
+        const likesSnapshot = await getDocs(
+          query(collection(db, 'likes'), where('likerId', '==', currentUserId))
+        );
+        const likedOrSkippedIds = likesSnapshot.docs.map(doc => doc.data().likedId);
+
+        // 2️⃣ Get all matches of current user
+        const matchesSnapshot = await getDocs(
+          query(collection(db, 'matches'), where('users', 'array-contains', currentUserId))
+        );
+        const matchedIds = matchesSnapshot.docs.flatMap(doc => doc.data().users);
+
+        // 3️⃣ Merge all excluded IDs (also exclude current user)
+        const excludedIds = Array.from(new Set([...likedOrSkippedIds, ...matchedIds, currentUserId]));
+
+        // 4️⃣ Fetch all profiles excluding excludedIds
+        const profilesSnapshot = await getDocs(collection(db, 'profiles'));
+        const newProfiles = [];
+        profilesSnapshot.forEach((doc) => {
+          if (!excludedIds.includes(doc.id)) {
+            newProfiles.push({ id: doc.id, ...doc.data() });
           }
         });
 
-        setProfiles(results);
+        setProfiles(newProfiles);
       } catch (error) {
         console.error('Error fetching profiles:', error);
       }
@@ -64,7 +89,7 @@ function SwipeCards() {
     else setSwipeDirection(null);
   };
 
-  // Animate card out (basic)
+  // Animate card out
   const animateSwipe = (direction) => {
     return new Promise((resolve) => {
       if (!cardRef.current) return resolve();
@@ -104,6 +129,7 @@ function SwipeCards() {
     try {
       const currentUserId = auth.currentUser.uid;
 
+      // Save like/skip action
       await addDoc(collection(db, 'likes'), {
         likerId: currentUserId,
         likedId: profileId,
@@ -112,6 +138,7 @@ function SwipeCards() {
       });
 
       if (action === 'like') {
+        // Check if the other user also liked current user
         const q = query(
           collection(db, 'likes'),
           where('likerId', '==', profileId),
@@ -121,12 +148,27 @@ function SwipeCards() {
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
-          await addDoc(collection(db, 'matches'), {
-            users: [currentUserId, profileId],
-            timestamp: new Date(),
-          });
+          // ✅ Use deterministic match ID
+          const matchId = [currentUserId, profileId].sort().join('_');
 
-          // Show match notification overlay
+          // Save match
+          await setDoc(doc(db, 'matches', matchId), {
+            users: [currentUserId, profileId],
+            timestamp: serverTimestamp(),
+          }, { merge: true });
+
+          // Create chat document
+          await setDoc(doc(db, 'chats', matchId), {
+            users: [currentUserId, profileId],
+            createdAt: serverTimestamp(),
+            lastMessage: '',
+            unread: {
+              [currentUserId]: false,
+              [profileId]: false
+            }
+          }, { merge: true });
+
+          // Show match overlay
           const matchedProfile = profiles.find((p) => p.id === profileId);
           setMatchProfile(matchedProfile);
         }
@@ -205,73 +247,70 @@ function SwipeCards() {
               onPointerCancel={isTop ? handlePointerUp : null}
               onPointerLeave={isTop ? handlePointerUp : null}
             >
+              {/* Like/Nope indicators */}
               {isTop && swipeDirection === 'right' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 20,
-                    left: 20,
-                    padding: '8px 16px',
-                    border: '4px solid #4caf50',
-                    color: '#4caf50',
-                    fontWeight: '800',
-                    fontSize: 32,
-                    borderRadius: 8,
-                    userSelect: 'none',
-                    transform: 'rotate(-15deg)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                    zIndex: 100,
-                  }}
-                >
-                  LIKE ❤️
-                </div>
+                <div style={{
+                  position: 'absolute',
+                  top: 20,
+                  left: 20,
+                  padding: '8px 16px',
+                  border: '4px solid #4caf50',
+                  color: '#4caf50',
+                  fontWeight: '800',
+                  fontSize: 32,
+                  borderRadius: 8,
+                  userSelect: 'none',
+                  transform: 'rotate(-15deg)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  zIndex: 100,
+                }}>LIKE ❤️</div>
               )}
 
               {isTop && swipeDirection === 'left' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 20,
-                    right: 20,
-                    padding: '8px 16px',
-                    border: '4px solid #ff3b30',
-                    color: '#ff3b30',
-                    fontWeight: '800',
-                    fontSize: 32,
-                    borderRadius: 8,
-                    userSelect: 'none',
-                    transform: 'rotate(15deg)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                    zIndex: 100,
-                  }}
-                >
-                  NOPE ❌
-                </div>
+                <div style={{
+                  position: 'absolute',
+                  top: 20,
+                  right: 20,
+                  padding: '8px 16px',
+                  border: '4px solid #ff3b30',
+                  color: '#ff3b30',
+                  fontWeight: '800',
+                  fontSize: 32,
+                  borderRadius: 8,
+                  userSelect: 'none',
+                  transform: 'rotate(15deg)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  zIndex: 100,
+                }}>NOPE ❌</div>
               )}
 
-              <div
-                style={{
-                  backgroundColor: 'rgba(0,0,0,0.5)',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  backdropFilter: 'blur(8px)',
-                }}
-              >
+              {/* Info overlay */}
+              <div style={{
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                padding: '12px',
+                borderRadius: '12px',
+                backdropFilter: 'blur(8px)',
+              }}>
                 <h2 style={{ margin: 0, fontSize: '1.8rem', color: '#ff4f81' }}>
                   {profile.name}, {profile.age}
                 </h2>
-                <p
-                  style={{
-                    marginTop: 6,
-                    fontSize: '1rem',
-                    color: 'white',
-                    maxHeight: 60,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                  title={profile.bio}
-                >
+                <p style={{
+                  marginTop: 6,
+                  fontSize: '1rem',
+                  color: 'white',
+                  maxHeight: 60,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }} title={profile.bio}>
                   {profile.bio || 'No bio available.'}
+                </p>
+                <p style={{
+                  marginTop: 6,
+                  fontSize: '0.9rem',
+                  color: 'white',
+                  overflowWrap: 'break-word',
+                }}>
+                  <strong>Hobbies:</strong> {profile.hobbies?.join(', ') || 'None'}
                 </p>
               </div>
             </div>
@@ -280,25 +319,23 @@ function SwipeCards() {
 
       {/* Match notification overlay */}
       {matchProfile && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.75)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            color: '#ff4f81',
-            fontSize: '2rem',
-            fontWeight: 'bold',
-            borderRadius: 20,
-            zIndex: 1000,
-            animation: 'fadeInScale 0.5s ease',
-            textAlign: 'center',
-            padding: '2rem',
-          }}
-        >
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          color: '#ff4f81',
+          fontSize: '2rem',
+          fontWeight: 'bold',
+          borderRadius: 20,
+          zIndex: 1000,
+          animation: 'fadeInScale 0.5s ease',
+          textAlign: 'center',
+          padding: '2rem',
+        }}>
           <div style={{ fontSize: 64, marginBottom: 20 }}>💖</div>
           <div>It's a Match!</div>
           <div style={{ marginTop: 10, fontSize: '1.5rem' }}>

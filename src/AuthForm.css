@@ -15,7 +15,9 @@
 }
 
 .signup-container input[type="email"],
-.signup-container input[type="password"] {
+.signup-container input[type="password"],
+.signup-container input[type="text"],
+.signup-container input[type="number"] {
   width: 100%;
   padding: 12px 15px;
   margin-bottom: 1rem;
@@ -26,7 +28,9 @@
 }
 
 .signup-container input[type="email"]:focus,
-.signup-container input[type="password"]:focus {
+.signup-container input[type="password"]:focus,
+.signup-container input[type="text"]:focus,
+.signup-container input[type="number"]:focus {
   outline: none;
   border-color: #ff4f81;
   box-shadow: 0 0 5px #ff4f81;
@@ -48,6 +52,26 @@
   background: #e2436d;
 }
 
+/* Google sign-in button styled similarly but distinct */
+.google-signin-btn {
+  width: 100%;
+  padding: 12px 15px;
+  background-color: #4285f4;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+  box-shadow: 0 3px 6px rgba(66, 133, 244, 0.5);
+  transition: background-color 0.3s ease;
+}
+
+.google-signin-btn:hover {
+  background-color: #357ae8;
+}
+
 .bottom-text {
   margin-top: 1rem;
   font-size: 0.9rem;
@@ -66,4 +90,11 @@
 
 .toggle-btn:hover {
   text-decoration: underline;
+}
+
+.error-text {
+  margin-top: 1rem;
+  color: #d93025;
+  font-weight: 600;
+  font-size: 0.9rem;
 }

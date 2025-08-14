@@ -12,6 +12,8 @@ function ProfileForm() {
   const [bio, setBio] = useState('');
   const [gender, setGender] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [hobbies, setHobbies] = useState('');
+  const [likes, setLikes] = useState('');
   const [uploading, setUploading] = useState(false);
 
   const userId = auth.currentUser.uid;
@@ -28,6 +30,8 @@ function ProfileForm() {
         setBio(data.bio || '');
         setGender(data.gender || '');
         setImageUrl(data.imageUrl || '');
+        setHobbies(Array.isArray(data.hobbies) ? data.hobbies.join(', ') : '');
+        setLikes(Array.isArray(data.likes) ? data.likes.join(', ') : '');
       }
     };
     fetchProfile();
@@ -56,6 +60,19 @@ function ProfileForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Validation for required fields except imageUrl
+    if (
+      !name.trim() ||
+      !age ||
+      !bio.trim() ||
+      !gender ||
+      !hobbies.trim() ||
+      !likes.trim()
+    ) {
+      alert('Please fill in all fields except image.');
+      return;
+    }
+
     if (Number(age) < 18) {
       alert('You must be at least 18 years old.');
       return;
@@ -63,13 +80,23 @@ function ProfileForm() {
 
     try {
       await setDoc(doc(db, 'profiles', userId), {
-        name,
+        name: name.trim(),
         age,
-        bio,
+        bio: bio.trim(),
         gender,
         imageUrl,
+        hobbies: hobbies.split(',').map(h => h.trim()).filter(h => h),
+        likes: likes.split(',').map(l => l.trim()).filter(l => l),
       });
-      setProfile({ name, age, bio, gender, imageUrl });
+      setProfile({
+        name: name.trim(),
+        age,
+        bio: bio.trim(),
+        gender,
+        imageUrl,
+        hobbies: hobbies.split(',').map(h => h.trim()).filter(h => h),
+        likes: likes.split(',').map(l => l.trim()).filter(l => l),
+      });
       setEditing(false);
       alert('Profile saved!');
     } catch (error) {
@@ -154,6 +181,24 @@ function ProfileForm() {
           style={{ marginBottom: '1rem', width: '100%', padding: '0.5rem' }}
         />
 
+        <input
+          type="text"
+          placeholder="Hobbies (comma separated)"
+          value={hobbies}
+          required
+          onChange={(e) => setHobbies(e.target.value)}
+          style={{ marginBottom: '1rem', width: '100%', padding: '0.5rem' }}
+        />
+
+        <input
+          type="text"
+          placeholder="Likes (comma separated)"
+          value={likes}
+          required
+          onChange={(e) => setLikes(e.target.value)}
+          style={{ marginBottom: '1rem', width: '100%', padding: '0.5rem' }}
+        />
+
         <button type="submit" disabled={uploading}>
           {uploading ? 'Uploading Image...' : profile ? 'Update Profile' : 'Save Profile'}
         </button>
@@ -191,6 +236,12 @@ function ProfileForm() {
       </p>
       <p>
         <strong>Bio:</strong> {profile.bio}
+      </p>
+      <p>
+        <strong>Hobbies:</strong> {profile.hobbies ? profile.hobbies.join(', ') : ''}
+      </p>
+      <p>
+        <strong>Likes:</strong> {profile.likes ? profile.likes.join(', ') : ''}
       </p>
 
       <button onClick={() => setEditing(true)}>✏️ Edit Profile</button>
